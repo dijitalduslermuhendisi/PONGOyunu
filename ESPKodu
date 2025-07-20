@@ -1,0 +1,86 @@
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+#define W 128
+#define H 32
+Adafruit_SSD1306 dsp(W, H, &Wire, -1);
+
+
+#define UP D4
+#define DN D3
+#define BZ D5
+
+
+int py = 10, by = 10, ph = 10, pw = 2;
+float bx = 64, byy = 16, sx = -1, sy = 1;
+
+int ps = 0, bs = 0, maxS = 5;
+int lvl = 1, spd = 10, bc = 0;
+
+void setup() {
+  pinMode(UP, INPUT_PULLUP);
+  pinMode(DN, INPUT_PULLUP);
+  pinMode(BZ, OUTPUT);
+  dsp.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  resetBall();
+}
+
+void loop() {
+  if (!digitalRead(UP) && py > 0) py--;
+  if (!digitalRead(DN) && py + ph < H) py++;
+  if (++bc > (6 - lvl)) {
+    bc = 0;
+    if (by + ph / 2 < byy - 2 && by + ph < H) by += random(0, 2);
+    else if (by + ph / 2 > byy + 2 && by > 0) by -= random(0, 2);
+  }
+  bx += sx; byy += sy;
+  if (byy <= 0 || byy >= H - 1) { sy = -sy; ses(1000, 40); }
+  if (bx <= pw && byy >= py && byy <= py + ph) { sx = -sx; ses(1000, 40); }
+  if (bx >= W - pw - 2 && byy >= by && byy <= by + ph) { sx = -sx; ses(1000, 40); }
+  if (bx < 0) { bs++; kaybet(); kontrolSon(); return; }
+  if (bx > W) {
+    ps++; gol();
+    if (lvl < 5) { lvl++; spd = max(3, spd - 1); }
+    kontrolSon(); return;
+  }
+
+  dsp.clearDisplay();
+  dsp.fillRect(0, 0, W, 8, SSD1306_BLACK);
+  dsp.setTextSize(1); dsp.setTextColor(SSD1306_WHITE);
+  dsp.setCursor(10, 0); dsp.print("Sen "); dsp.print(ps); dsp.print("-"); dsp.print(bs);
+  dsp.setCursor(100, 0); dsp.print("Z:"); dsp.print(lvl);
+  dsp.drawRect(0, py, pw, ph, SSD1306_WHITE);
+  dsp.drawRect(W - pw, by, pw, ph, SSD1306_WHITE);
+  dsp.fillRect((int)bx, (int)byy, 2, 2, SSD1306_WHITE);
+  dsp.display();
+  delay(spd);
+}
+
+void resetBall() {
+  py = by = 10; bx = W / 2; byy = H / 2;
+  int h = 1 + lvl / 2;  // zorluk 1→1, 3→2, 5→3
+  sx = random(0, 2) ? h : -h;
+  sy = random(0, 2) ? h : -h;
+}
+
+void kontrolSon() {
+  if (ps >= maxS) bitis("Kazandin");
+  if (bs >= maxS) bitis("Kaybettin");
+  resetBall();
+}
+
+void bitis(const char* m) {
+  dsp.clearDisplay();
+  dsp.setTextSize(2); dsp.setTextColor(SSD1306_WHITE);
+  dsp.setCursor(10, 10); dsp.print(m); dsp.display();
+  delay(3000);
+  ps = bs = 0; lvl = 1; spd = 10;
+}
+
+void ses(int f, int s) {
+  tone(BZ, f, s); delay(s); noTone(BZ);
+}
+
+void gol() { ses(700, 120); ses(900, 120); ses(1200, 150); }
+
+void kaybet() { ses(200, 200); ses(100, 300); }
